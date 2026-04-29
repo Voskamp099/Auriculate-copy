@@ -1477,9 +1477,41 @@ function setupAudio() {
   for (const s of [dogSound, doorSound, footstepsSound, guzhenSound]) {
     s.loop = false; s.volume = 0.9;
   }
-  // 在 setupAudio 里加载持久化映射，确保 Audio 对象在用户交互后创建
-  loadPersistedMap();
+  // 补全之前 restoreLabelsFromStorage 里 audio=null 的条目（用户交互后才创建 Audio）
+  for (const [g, v] of Object.entries(customGestureMap)) {
+    if (!v.audio) v.audio = getOrCreateAudio(v.url, true);
+  }
+  for (const [g, v] of Object.entries(customSFXMap)) {
+    if (!v.audio) v.audio = getOrCreateAudio(v.url, false);
+  }
 }
+
+// ── 页面加载时立即恢复标签（不创建 Audio，只更新 UI 文字）──────
+function restoreLabelsFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const slim = JSON.parse(raw);
+      for (const [g, v] of Object.entries(slim)) {
+        // 写入 customGestureMap（audio 先留 null，setupAudio 后会补上）
+        customGestureMap[g] = { label: v.label, url: v.url, audio: null };
+        applyLabelToPanel(g, v.label);
+      }
+    }
+  } catch(e) {}
+  try {
+    const rawSFX = localStorage.getItem(LS_KEY + "_sfx");
+    if (rawSFX) {
+      const slim = JSON.parse(rawSFX);
+      for (const [g, v] of Object.entries(slim)) {
+        customSFXMap[g] = { label: v.label, url: v.url, audio: null };
+        applyLabelToSFXPanel(g, v.label);
+      }
+    }
+  } catch(e) {}
+}
+// module 脚本在 DOM 就绪后执行，立即恢复 UI 标签（不创建 Audio）
+document.addEventListener("DOMContentLoaded", restoreLabelsFromStorage);
 
 function playAmbience(s) {
   if (currentAmbience === s) return;
