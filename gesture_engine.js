@@ -116,11 +116,12 @@ function setAmbienceVolumeTarget(v) {
 function updateSmoothedVolume() {
   const SMOOTHING = 0.85;
   smoothedAmbienceVolume = smoothedAmbienceVolume * SMOOTHING + ambienceVolume * (1 - SMOOTHING);
-  // In ambience layer, scale ambience volume.
-  // In SFX layer, scale the most recently triggered SFX.
-  if (currentLayer === "ambience" && currentAmbience) {
+  // Always control ambience volume.
+  if (currentAmbience) {
     currentAmbience.volume = smoothedAmbienceVolume;
-  } else if (currentLayer === "sfx" && lastSFXPlaying) {
+  }
+  // In SFX layer, also apply the same volume to the active SFX.
+  if (currentLayer === "sfx" && lastSFXPlaying) {
     lastSFXPlaying.volume = smoothedAmbienceVolume;
   }
 }
@@ -466,12 +467,16 @@ function detectLoop() {
     lockedGesture = activeSoundGesture;
     status.textContent =
       `${getAmbienceLabel(lockedGesture)} | Volume locked (show same gesture to unlock)`;
+  } else if (currentLayer === "sfx" && currentAmbience) {
+    // SFX layer: soundHand left frame, ambience keeps playing
+    status.textContent = "Ambience continues. (make a gesture to play SFX)";
   } else if (!volumeHand) {
     if (isVolumeLocked && currentAmbience) {
       status.textContent = "Volume locked. Sound continues until unlocked or fist.";
     } else {
       status.textContent = "Show your hands. Press M to toggle mirror.";
-      stopAmbience();
+      // Only stop ambience if we're in ambience layer (SFX layer keeps it running)
+      if (currentLayer === "ambience") stopAmbience();
       stopAllSFX();
       lastSFXPlaying = null;
       isVolumeLocked = false;
